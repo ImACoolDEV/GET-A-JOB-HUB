@@ -10,10 +10,11 @@ local playerGui = localPlayer:WaitForChild("PlayerGui")
 local godmodeEnabled = false
 local speedBoostEnabled = false
 local autoPickupItemsEnabled = false
+local killAuraEnabled = false
 local GUN_NAME = "TaurusJudge"
 local TOGGLE_KEY = Enum.KeyCode.RightControl
 
-local godConnection, pickupLoop
+local godConnection, pickupLoop, killAuraConnection
 local customToolName = "⚡ Imperial Slayer"
 
 -- ============================================================================
@@ -44,7 +45,6 @@ local function applyGunModsToTable(config)
 end
 
 local function modifyTool(tool)
-    -- Find Setting Module (Supports direct parent or nested under GunScript_Local)
     local settingModule = tool:FindFirstChild("Setting", true)
     if not settingModule then
         local repTools = ReplicatedStorage:FindFirstChild("Tools")
@@ -59,7 +59,6 @@ local function modifyTool(tool)
             applyGunModsToTable(config)
             print("[NoobHub] Modified Setting Table for: " .. tool.Name)
             
-            -- Restart local gun script to force it to re-read the setting module
             local localGunScript = tool:FindFirstChild("GunScript_Local", true)
             if localGunScript and localGunScript:IsA("LocalScript") then
                 localGunScript.Disabled = true
@@ -72,13 +71,11 @@ local function modifyTool(tool)
 end
 
 local function scanAndModifyGuns()
-    -- Scan Backpack
     for _, item in ipairs(localPlayer.Backpack:GetChildren()) do
         if item:IsA("Tool") then
             modifyTool(item)
         end
     end
-    -- Scan Character
     if localPlayer.Character then
         for _, item in ipairs(localPlayer.Character:GetChildren()) do
             if item:IsA("Tool") then
@@ -88,7 +85,6 @@ local function scanAndModifyGuns()
     end
 end
 
--- Tool Renamer
 local function renameTools(newName)
     local backpack = localPlayer:FindFirstChildOfClass("Backpack")
     local character = localPlayer.Character
@@ -105,7 +101,6 @@ local function renameTools(newName)
     end
 end
 
--- Auto-mod on tool added
 local backpackRef = localPlayer:WaitForChild("Backpack")
 backpackRef.ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
@@ -123,7 +118,6 @@ screenGui.Name = "SahurNoobHubWhite"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Imagine Decal Frame
 local imageFrame = Instance.new("ImageLabel")
 imageFrame.Size = UDim2.new(0, 180, 0, 180)
 imageFrame.Position = UDim2.new(0.5, -450, 0.5, -90)
@@ -137,7 +131,6 @@ local imageCorner = Instance.new("UICorner")
 imageCorner.CornerRadius = UDim.new(0, 16)
 imageCorner.Parent = imageFrame
 
--- Clean White Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 700, 0, 380)
 mainFrame.Position = UDim2.new(0.5, -250, 0.5, -190)
@@ -156,7 +149,6 @@ frameStroke.Thickness = 2
 frameStroke.Color = Color3.fromRGB(220, 220, 230)
 frameStroke.Parent = mainFrame
 
--- Title Bar
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 48)
 titleBar.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
@@ -177,7 +169,6 @@ titleText.Font = Enum.Font.GothamBold
 titleText.TextSize = 16
 titleText.Parent = titleBar
 
--- Scrolling Container
 local scrollingContainer = Instance.new("ScrollingFrame")
 scrollingContainer.Size = UDim2.new(1, -20, 1, -62)
 scrollingContainer.Position = UDim2.new(0, 10, 0, 54)
@@ -195,7 +186,6 @@ uiGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 uiGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 uiGridLayout.Parent = scrollingContainer
 
--- Button Factory
 local function createButton(text, order)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 218, 0, 44)
@@ -219,14 +209,13 @@ local function createButton(text, order)
     return btn, stroke
 end
 
--- Create Menu Buttons
 local gunModBtn, gunStroke = createButton("🔫 Modify TaurusJudge (OP Mods)", 1)
 local renameBtn, renameStroke = createButton("✏️ Rename Inventory Tools", 2)
 local speedBtn, speedStroke = createButton("⚡ Speed Boost (60): OFF", 3)
 local godModeBtn, godStroke = createButton("🛡️ God Mode: OFF", 4)
 local pickupBtn, pickupStroke = createButton("🎁 Auto Pickup Items: OFF", 5)
+local killAuraBtn, killAuraStroke = createButton("💀 Remote KillAura: OFF", 6)
 
--- Button Actions
 gunModBtn.MouseButton1Click:Connect(function()
     scanAndModifyGuns()
 end)
@@ -290,7 +279,39 @@ godModeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Keybind Toggle (RightControl)
+-- Added Remote KillAura / Bypass Attack Mechanism
+killAuraBtn.MouseButton1Click:Connect(function()
+    killAuraEnabled = not killAuraEnabled
+    killAuraBtn.Text = killAuraEnabled and "💀 Remote KillAura: ON" or "💀 Remote KillAura: OFF"
+    killAuraBtn.BackgroundColor3 = killAuraEnabled and Color3.fromRGB(220, 245, 230) or Color3.fromRGB(248, 248, 252)
+    killAuraStroke.Color = killAuraEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(220, 220, 230)
+
+    if killAuraEnabled then
+        killAuraConnection = RunService.Heartbeat:Connect(function()
+            local character = localPlayer.Character
+            if not character then return end
+            local tool = character:FindFirstChildOfClass("Tool")
+            if not tool then return end
+            
+            local inflictRemote = tool:FindFirstChild("InflictTarget", true) or ReplicatedStorage:FindFirstChild("InflictTarget", true)
+            if not inflictRemote then return end
+
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= localPlayer and player.Character then
+                    local enemyHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                    local enemyTorso = player.Character:FindFirstChild("Torso") or player.Character:FindFirstChild("UpperTorso")
+                    
+                    if enemyHumanoid and enemyHumanoid.Health > 0 and enemyTorso then
+                        inflictRemote:FireServer(enemyHumanoid, enemyTorso)
+                    end
+                end
+            end
+        end)
+    else
+        if killAuraConnection then killAuraConnection:Disconnect() end
+    end
+end)
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == TOGGLE_KEY then
