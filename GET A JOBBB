@@ -2,8 +2,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
-local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -15,65 +14,84 @@ local GUN_NAME = "TaurusJudge"
 local TOGGLE_KEY = Enum.KeyCode.RightControl
 
 local godConnection, pickupLoop
-local customToolName = "⚡ Imperial Slayer"
+local customToolName = "⚡BROOOO GET A JOBBB"
 
 -- ============================================================================
--- GUN MODIFIER FUNCTION
+-- DIRECT DECOMPILED GUN OVERRIDE SYSTEM
 -- ============================================================================
-local function modifyGun(tool)
-    local settingScript = tool:FindFirstChild("Setting")
+local function overrideGunTable(config)
+    -- Fire Rate & Damage Mods
+    config.Auto = true
+    config.FireRate = 0
+    config.BaseDamage = 999999
+    config.HeadshotEnabled = true
+    config.HeadshotDamageMultiplier = 100
+    config.CriticDamage = true
+    config.CriticBaseChance = 100
     
-    if settingScript and settingScript:IsA("ModuleScript") then
-        local config = require(settingScript)
-        
-        -- Infinite Ammo
-        config.LimitedClipEnabled = false 
-        config.AmmoPerClip = math.huge
-        config.MaxClip = math.huge
-        
-        -- No Spread
-        config.Spread = 0
-        config.SpreadRedution = 0
-        
-        -- No Recoil
-        config.CameraShakingEnabled = false
-        
-        -- Super Fast Firerate
-        config.FireRate = 0
-        config.Auto = true
-        config.BurstFireEnabled = false
-        config.DelayBeforeFiring = 0
-        config.DelayAfterFiring = 0
-        
-        print("Success: " .. tool.Name .. " has been modified!")
-    else
-        warn("Could not find 'Setting' module inside " .. tool.Name)
-    end
+    -- Recoil & Spread
+    config.Spread = 0
+    config.SpreadRedution = 0
+    config.CameraShakingEnabled = false
+    config.Knockback = 0
+    
+    -- Infinite Ammo & Fast Firing
+    config.LimitedClipEnabled = false
+    config.AmmoPerClip = 999999
+    config.MaxClip = 999999
+    config.Clips = 999999
+    config.ReloadTime = 0
+    config.ShotDelay = 0
+    config.DelayBeforeFiring = 0
+    config.DelayAfterFiring = 0
+    
+    -- Multishot / Shotgun Mods
+    config.BulletPerShot = 15
+    config.BulletSpeed = 5000
+    config.Piercing = 99
 end
 
-local function applyGunMods()
-    local backpackGun = localPlayer.Backpack:FindFirstChild(GUN_NAME)
-    local characterGun = localPlayer.Character and localPlayer.Character:FindFirstChild(GUN_NAME)
-
-    if backpackGun then
-        modifyGun(backpackGun)
-    elseif characterGun then
-        modifyGun(characterGun)
-    else
-        -- Fallback: Attempt to modify any tool equipped if specific name missing
-        for _, item in ipairs(localPlayer.Backpack:GetChildren()) do
-            if item:IsA("Tool") then modifyGun(item) end
-        end
-        if localPlayer.Character then
-            for _, item in ipairs(localPlayer.Character:GetChildren()) do
-                if item:IsA("Tool") then modifyGun(item) end
+local function modifyTaurusGun()
+    -- 1. Modify the template in ReplicatedStorage directly
+    local repTools = ReplicatedStorage:FindFirstChild("Tools")
+    if repTools then
+        local repGun = repTools:FindFirstChild(GUN_NAME)
+        if repGun then
+            local settingScript = repGun:FindFirstChild("GunScript_Local") and repGun.GunScript_Local:FindFirstChild("Setting")
+            if settingScript then
+                local success, config = pcall(require, settingScript)
+                if success and type(config) == "table" then
+                    overrideGunTable(config)
+                    print("[NoobHub] Modified ReplicatedStorage template for " .. GUN_NAME)
+                end
             end
         end
     end
+
+    -- 2. Modify Backpack & Character Instances
+    local function processTool(tool)
+        local settingScript = tool:FindFirstChild("Setting", true) or tool:FindFirstChild("Settings", true)
+        if settingScript and settingScript:IsA("ModuleScript") then
+            local success, config = pcall(require, settingScript)
+            if success and type(config) == "table" then
+                overrideGunTable(config)
+                print("[NoobHub] Modified active weapon: " .. tool.Name)
+            end
+        end
+    end
+
+    for _, item in ipairs(localPlayer.Backpack:GetChildren()) do
+        if item:IsA("Tool") then processTool(item) end
+    end
+    if localPlayer.Character then
+        for _, item in ipairs(localPlayer.Character:GetChildren()) do
+            if item:IsA("Tool") then processTool(item) end
+        end
+    end
 end
 
 -- ============================================================================
--- TOOL RENAMER SYSTEM
+-- TOOL RENAMER
 -- ============================================================================
 local function renameTools(newName)
     local backpack = localPlayer:FindFirstChildOfClass("Backpack")
@@ -81,36 +99,33 @@ local function renameTools(newName)
 
     if backpack then
         for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                tool.Name = newName
-            end
+            if tool:IsA("Tool") then tool.Name = newName end
         end
     end
     if character then
         for _, tool in ipairs(character:GetChildren()) do
-            if tool:IsA("Tool") then
-                tool.Name = newName
-            end
+            if tool:IsA("Tool") then tool.Name = newName end
         end
     end
 end
 
 local backpackRef = localPlayer:WaitForChild("Backpack")
 backpackRef.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") and customToolName ~= "" then
-        child.Name = customToolName
+    if child:IsA("Tool") then
+        if customToolName ~= "" then child.Name = customToolName end
+        modifyTaurusGun()
     end
 end)
 
 -- ============================================================================
--- GUI INITIALIZATION
+-- CLEAN WHITE GUI & DECAL DISPLAY
 -- ============================================================================
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SahurNoobHub"
+screenGui.Name = "SahurNoobHubWhite"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Imagine GUI (ID: 99786917358600)
+-- Image Decal (ID: 99786917358600)
 local imageFrame = Instance.new("ImageLabel")
 imageFrame.Size = UDim2.new(0, 180, 0, 180)
 imageFrame.Position = UDim2.new(0.5, -450, 0.5, -90)
@@ -124,39 +139,29 @@ local imageCorner = Instance.new("UICorner")
 imageCorner.CornerRadius = UDim.new(0, 16)
 imageCorner.Parent = imageFrame
 
--- Main Frame
+-- Main Frame (Clean White Theme)
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 700, 0, 380)
 mainFrame.Position = UDim2.new(0.5, -250, 0.5, -190)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+mainFrame.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = screenGui
-
-local mainGradient = Instance.new("UIGradient")
-mainGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 30)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(15, 15, 18)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 12))
-})
-mainGradient.Rotation = 45
-mainGradient.Parent = mainFrame
 
 local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0, 16)
 frameCorner.Parent = mainFrame
 
 local frameStroke = Instance.new("UIStroke")
-frameStroke.Thickness = 2.5
-frameStroke.Color = Color3.fromRGB(230, 180, 50)
-frameStroke.Transparency = 0.1
+frameStroke.Thickness = 2
+frameStroke.Color = Color3.fromRGB(210, 210, 220)
 frameStroke.Parent = mainFrame
 
--- Title Bar
+-- Header Title Bar
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 48)
-titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 titleBar.Parent = mainFrame
 
 local titleCorner = Instance.new("UICorner")
@@ -168,13 +173,13 @@ titleText.Size = UDim2.new(1, -220, 1, 0)
 titleText.Position = UDim2.new(0, 16, 0, 0)
 titleText.BackgroundTransparency = 1
 titleText.Text = "👑 NOOB HUB V2 — Get a Job Sahur"
-titleText.TextColor3 = Color3.fromRGB(255, 220, 100)
+titleText.TextColor3 = Color3.fromRGB(30, 30, 35)
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 titleText.Font = Enum.Font.GothamBold
 titleText.TextSize = 16
 titleText.Parent = titleBar
 
--- Scrolling Container
+-- Layout Container
 local scrollingContainer = Instance.new("ScrollingFrame")
 scrollingContainer.Size = UDim2.new(1, -20, 1, -62)
 scrollingContainer.Position = UDim2.new(0, 10, 0, 54)
@@ -182,7 +187,7 @@ scrollingContainer.BackgroundTransparency = 1
 scrollingContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollingContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
 scrollingContainer.ScrollBarThickness = 5
-scrollingContainer.ScrollBarImageColor3 = Color3.fromRGB(230, 180, 50)
+scrollingContainer.ScrollBarImageColor3 = Color3.fromRGB(180, 180, 190)
 scrollingContainer.Parent = mainFrame
 
 local uiGridLayout = Instance.new("UIGridLayout")
@@ -198,18 +203,11 @@ local function createButton(text, order)
     btn.Size = UDim2.new(0, 218, 0, 44)
     btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+    btn.TextColor3 = Color3.fromRGB(40, 40, 45)
     btn.Font = Enum.Font.GothamSemibold
     btn.TextSize = 12
     btn.LayoutOrder = order
     btn.Parent = scrollingContainer
-
-    local btnGradient = Instance.new("UIGradient")
-    btnGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(32, 32, 38)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 18, 22))
-    })
-    btnGradient.Parent = btn
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
@@ -217,23 +215,22 @@ local function createButton(text, order)
 
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 1.2
-    stroke.Color = Color3.fromRGB(200, 160, 60)
-    stroke.Transparency = 0.4
+    stroke.Color = Color3.fromRGB(220, 220, 230)
     stroke.Parent = btn
 
-    return btn, btnGradient, stroke
+    return btn, stroke
 end
 
--- Buttons
-local gunModBtn = createButton("🔫 Apply Gun Mods (Taurus)", 1)
-local renameBtn = createButton("✏️ Rename Inventory Tools", 2)
-local speedBtn, speedGrad, speedStroke = createButton("⚡ Speed Boost (60): OFF", 3)
-local godModeBtn, godGrad, godStroke = createButton("🛡️ God Mode: OFF", 4)
-local pickupBtn, pickupGrad, pickupStroke = createButton("🎁 Auto Pickup Items: OFF", 5)
+-- Create Menu Buttons
+local gunModBtn, gunStroke = createButton("🔫 Modify TaurusJudge (OP Mods)", 1)
+local renameBtn, renameStroke = createButton("✏️ Rename Inventory Tools", 2)
+local speedBtn, speedStroke = createButton("⚡ Speed Boost (60): OFF", 3)
+local godModeBtn, godStroke = createButton("🛡️ God Mode: OFF", 4)
+local pickupBtn, pickupStroke = createButton("🎁 Auto Pickup Items: OFF", 5)
 
--- Actions
+-- Event Listeners
 gunModBtn.MouseButton1Click:Connect(function()
-    applyGunMods()
+    modifyTaurusGun()
 end)
 
 renameBtn.MouseButton1Click:Connect(function()
@@ -243,8 +240,8 @@ end)
 speedBtn.MouseButton1Click:Connect(function()
     speedBoostEnabled = not speedBoostEnabled
     speedBtn.Text = speedBoostEnabled and "⚡ Speed Boost (60): ON" or "⚡ Speed Boost (60): OFF"
-    speedGrad.Color = speedBoostEnabled and ColorSequence.new(Color3.fromRGB(20, 120, 70), Color3.fromRGB(10, 70, 40)) or ColorSequence.new(Color3.fromRGB(32, 32, 38), Color3.fromRGB(18, 18, 22))
-    speedStroke.Color = speedBoostEnabled and Color3.fromRGB(50, 255, 150) or Color3.fromRGB(200, 160, 60)
+    speedBtn.BackgroundColor3 = speedBoostEnabled and Color3.fromRGB(220, 245, 230) or Color3.fromRGB(255, 255, 255)
+    speedStroke.Color = speedBoostEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(220, 220, 230)
 
     local character = localPlayer.Character
     if character and character:FindFirstChildOfClass("Humanoid") then
@@ -255,8 +252,8 @@ end)
 pickupBtn.MouseButton1Click:Connect(function()
     autoPickupItemsEnabled = not autoPickupItemsEnabled
     pickupBtn.Text = autoPickupItemsEnabled and "🎁 Auto Pickup Items: ON" or "🎁 Auto Pickup Items: OFF"
-    pickupGrad.Color = autoPickupItemsEnabled and ColorSequence.new(Color3.fromRGB(20, 120, 70), Color3.fromRGB(10, 70, 40)) or ColorSequence.new(Color3.fromRGB(32, 32, 38), Color3.fromRGB(18, 18, 22))
-    pickupStroke.Color = autoPickupItemsEnabled and Color3.fromRGB(50, 255, 150) or Color3.fromRGB(200, 160, 60)
+    pickupBtn.BackgroundColor3 = autoPickupItemsEnabled and Color3.fromRGB(220, 245, 230) or Color3.fromRGB(255, 255, 255)
+    pickupStroke.Color = autoPickupItemsEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(220, 220, 230)
 
     if autoPickupItemsEnabled then
         pickupLoop = RunService.Heartbeat:Connect(function()
@@ -278,8 +275,8 @@ end)
 godModeBtn.MouseButton1Click:Connect(function()
     godmodeEnabled = not godmodeEnabled
     godModeBtn.Text = godmodeEnabled and "🛡️ God Mode: ON" or "🛡️ God Mode: OFF"
-    godGrad.Color = godmodeEnabled and ColorSequence.new(Color3.fromRGB(20, 120, 70), Color3.fromRGB(10, 70, 40)) or ColorSequence.new(Color3.fromRGB(32, 32, 38), Color3.fromRGB(18, 18, 22))
-    godStroke.Color = godmodeEnabled and Color3.fromRGB(50, 255, 150) or Color3.fromRGB(200, 160, 60)
+    godModeBtn.BackgroundColor3 = godmodeEnabled and Color3.fromRGB(220, 245, 230) or Color3.fromRGB(255, 255, 255)
+    godStroke.Color = godmodeEnabled and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(220, 220, 230)
 
     if godmodeEnabled then
         godConnection = RunService.Heartbeat:Connect(function()
@@ -295,6 +292,7 @@ godModeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Keybind Toggle (RightControl)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == TOGGLE_KEY then
