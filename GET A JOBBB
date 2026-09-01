@@ -11,11 +11,9 @@ local godmodeEnabled = false
 local speedBoostEnabled = false
 local autoPickupItemsEnabled = false
 local killAuraEnabled = false
-local GUN_NAME = "TaurusJudge"
 local TOGGLE_KEY = Enum.KeyCode.RightControl
 
 local godConnection, pickupLoop, killAuraConnection
-local customToolName = "⚡ Imperial Slayer"
 
 -- ============================================================================
 -- WORKING GUN MODIFIER (Forces Script Restart to Apply Settings)
@@ -83,32 +81,29 @@ local function scanAndModifyGuns()
             end
         end
     end
+    print("[NoobHub] Scanned and modified all active tools.")
 end
 
-local function renameTools(newName)
-    local backpack = localPlayer:FindFirstChildOfClass("Backpack")
-    local character = localPlayer.Character
-
-    if backpack then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then tool.Name = newName end
-        end
-    end
-    if character then
-        for _, tool in ipairs(character:GetChildren()) do
-            if tool:IsA("Tool") then tool.Name = newName end
-        end
-    end
-end
-
+-- Auto-mod on backpack addition
 local backpackRef = localPlayer:WaitForChild("Backpack")
 backpackRef.ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
-        if customToolName ~= "" then child.Name = customToolName end
         task.wait(0.1)
         modifyTool(child)
     end
 end)
+
+-- Auto-mod when holding a tool in character
+local function onCharacterAdded(char)
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            task.wait(0.1)
+            modifyTool(child)
+        end
+    end)
+end
+if localPlayer.Character then onCharacterAdded(localPlayer.Character) end
+localPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 -- ============================================================================
 -- CLEAN WHITE GUI & DECAL DISPLAY (ID: 99786917358600)
@@ -132,8 +127,8 @@ imageCorner.CornerRadius = UDim.new(0, 16)
 imageCorner.Parent = imageFrame
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 700, 0, 380)
-mainFrame.Position = UDim2.new(0.5, -250, 0.5, -190)
+mainFrame.Size = UDim2.new(0, 700, 0, 330)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -165)
 mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -209,19 +204,14 @@ local function createButton(text, order)
     return btn, stroke
 end
 
-local gunModBtn, gunStroke = createButton("🔫 Modify TaurusJudge (OP Mods)", 1)
-local renameBtn, renameStroke = createButton("✏️ Rename Inventory Tools", 2)
-local speedBtn, speedStroke = createButton("⚡ Speed Boost (60): OFF", 3)
-local godModeBtn, godStroke = createButton("🛡️ God Mode: OFF", 4)
-local pickupBtn, pickupStroke = createButton("🎁 Auto Pickup Items: OFF", 5)
-local killAuraBtn, killAuraStroke = createButton("💀 Remote KillAura: OFF", 6)
+local gunModBtn, gunStroke = createButton("🔫 Modify All Guns (OP Mods)", 1)
+local speedBtn, speedStroke = createButton("⚡ Speed Boost (60): OFF", 2)
+local godModeBtn, godStroke = createButton("🛡️ God Mode: OFF", 3)
+local pickupBtn, pickupStroke = createButton("🎁 Auto Pickup Items: OFF", 4)
+local killAuraBtn, killAuraStroke = createButton("💀 Remote KillAura: OFF", 5)
 
 gunModBtn.MouseButton1Click:Connect(function()
     scanAndModifyGuns()
-end)
-
-renameBtn.MouseButton1Click:Connect(function()
-    renameTools(customToolName)
 end)
 
 speedBtn.MouseButton1Click:Connect(function()
@@ -279,7 +269,6 @@ godModeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Added Remote KillAura / Bypass Attack Mechanism
 killAuraBtn.MouseButton1Click:Connect(function()
     killAuraEnabled = not killAuraEnabled
     killAuraBtn.Text = killAuraEnabled and "💀 Remote KillAura: ON" or "💀 Remote KillAura: OFF"
